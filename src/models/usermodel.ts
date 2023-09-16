@@ -1,15 +1,18 @@
 import mongoose from "mongoose";
+import validator from "validator";
 
 const Schema = mongoose.Schema;
 
 const userSchema = new Schema({
-    username: {
+    name: {
         type: String,
         required: true
     },
     email: {
         type: String,
         required: true,
+        lowercase: true,
+        validate: validator.isEmail,
         unique: true
     },
     roles: {
@@ -18,8 +21,13 @@ const userSchema = new Schema({
     },
     password: {
         type: String,
-        required: true
+        required: true,
+        minlength: 8
     },
+   // passwordConfirm: {
+     //   type: String,
+       // required: true
+    // },
     bio: {
         type: String,
         maxlength: 100
@@ -30,4 +38,4 @@ const userSchema = new Schema({
     },
 });
 
-module.exports = mongoose.model('User', userSchema);
+export const UserModel = mongoose.model('User', userSchema);
