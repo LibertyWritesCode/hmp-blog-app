@@ -28,13 +28,15 @@ app.post('/signup', async (req: express.Request, res: express.Response, next) =>
        // Receive req.body
         const { name, email, password} = req.body;
         
-        // Check if user submitted the required values
+        //1. Check if user submitted the required values
         if (!name || !email || !password) {
             return res.status(400).send({ message: 'Name, email, and password are required' });
         } 
+        //2. Check if email address is valid
         if (!validator.isEmail(email)) {
           return res.status(400).send({ message: 'Enter valid email address'})
         }
+        //3. Check if password length is not less than 8 characters
         if (password.length < 8) {
           return res.status(400).send({ message: 'Password must be at least 8 characters'})
         }
@@ -42,39 +44,63 @@ app.post('/signup', async (req: express.Request, res: express.Response, next) =>
           //return res.status(400).json({ error: 'Passwords do not match' });
         //}
 
-         // Check if the name already exists in the database
+         //4. Check if the name already exists in the database
     const existingName = await UserModel.findOne({ name });
     if (existingName) {
       return res.status(400).send({ message: 'Name already in use' });
     }
 
-       // Check if the email already exists in the database
+       //5. Check if the email already exists in the database
     const existingEmail = await UserModel.findOne({ email });
     if (existingEmail) {
       return res.status(400).send({ message: 'Email already in use' });
     }
 
-    // Hash the password before saving it in the database
+    //6. Hash the password before saving it in the database
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Save the user to your database (replace with your database logic)
+    //7. Save the user to the database 
     const newUser = await UserModel.create({ 
       name: req.body.name, 
       email: req.body.email, 
       password: hashedPassword });
     
-
-       // Generate a unique token for the user (JWT token)
-    //const token = jwt.sign({ userId: newUser._id }, 'your-secret-key', { expiresIn: '1h' });
+       //8. Generate a unique token for the user (JWT token)
     const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
-
-   // return res.status(200).send({ status: 'Success', data: { user: newUser, token } });
-    return res.status(200).send({ message: 'User successfully signed in', token, data: { user: newUser} });
+    return res.status(200).send({ message: 'Signup successful', token, data: { user: newUser} });
         
     } catch (error) {
       console.log(error)
         return res.status(500).send({ error: 'Internal Server Error'})
     }
+});
+
+//LOGIN
+app.post('/login', async (req: express.Request, res: express.Response) =>  {
+        const { email, password } = req.body;
+
+        try {
+           //1. Check if email and pwd exists
+        if (!email || !password) {
+          return res.status(400).send({ message: 'Email and password are required' });
+        }
+          
+        //2. Check if user exists and pwd is correct
+        const user = await UserModel.findOne({ email: email }).select('+password')
+    
+        // Compare the provided password with the hashed password stored in the database
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+          return res.status(400).send({ message: 'Incorrect email or password' });
+        }
+       
+      //3. If everything is ok, send token back to client
+      const token =  jwt.sign({ userId: user._id }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
+      return res.status(200).send({ message: 'Login sucessful', token });
+         
+        } catch (error) {
+          console.log(error)
+          return res.status(500).send({ message: 'Internal Server Error' });
+        }
 });
 
 

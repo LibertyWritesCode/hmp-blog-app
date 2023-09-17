@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import validator from "validator";
+import bcrypt from 'bcrypt';
 
 const Schema = mongoose.Schema;
 
@@ -22,7 +23,8 @@ const userSchema = new Schema({
     password: {
         type: String,
         required: true,
-        minlength: 8
+        minlength: 8,
+        select: false
     },
    // passwordConfirm: {
      //   type: String,
@@ -37,5 +39,10 @@ const userSchema = new Schema({
         default: new Date()
     },
 });
+
+  //Compare password with hashed password
+ // userSchema.methods.correctPassword = async function(candidatePassword, userPassword): Promise<any> {
+   // return await bcrypt.compare(candidatePassword, userPassword)
+  // }
 
 export const UserModel = mongoose.model('User', userSchema);
