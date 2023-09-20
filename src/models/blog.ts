@@ -2,23 +2,6 @@ import mongoose from "mongoose";
 
 const Schema = mongoose.Schema;
 
-interface Comment {
-    body: string;
-    user_id?: mongoose.Types.ObjectId;
-    comment_id?: mongoose.Types.ObjectId;
-}
-
-// Define the Post interface that extends Document
-interface Post extends Document {
-    title: string;
-    content: string;
-    author: string;
-    likes: number;
-    dislikes: number;
-    comments: Comment[];
-}
-
-
 const PostSchema = new Schema(
   {
     title: {
@@ -68,3 +51,21 @@ const PostSchema = new Schema(
 );
 
 export const PostModel = mongoose.model('Post', PostSchema);
+
+/**
+ * interface Comment {
+    body: string;
+    user_id?: mongoose.Types.ObjectId;
+    comment_id?: mongoose.Types.ObjectId;
+}
+
+// Define the Post interface that extends Document
+interface Post extends Document {
+    title: string;
+    content: string;
+    author: string;
+    likes: number;
+    dislikes: number;
+    comments: Comment[];
+}
+ */

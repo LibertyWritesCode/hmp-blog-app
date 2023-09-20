@@ -60,9 +60,10 @@ app.post('/signup', async (req: express.Request, res: express.Response) => {
       name: req.body.name, 
       email: req.body.email, 
       password: hashedPassword });
-    
-       //8. Generate a unique token for the user (JWT token)
+
+    //8. Generate a unique token for the user (JWT token)
     const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
+
     return res.status(200).send({ message: 'Signup successful', token, data: { user: newUser} });
         
     } catch (error) {

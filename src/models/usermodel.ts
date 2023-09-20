@@ -26,15 +26,6 @@ const userSchema = new Schema({
         minlength: 8,
         select: false
     },
-   // passwordConfirm: {
-     //   type: String,
-       // required: true
-    // },
-    
-    bio: {
-        type: String,
-        maxlength: 100
-    },
     registeredAt: {
         type: Date,
         default: new Date()
