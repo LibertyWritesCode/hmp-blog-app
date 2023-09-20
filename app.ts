@@ -12,17 +12,13 @@ import jwt from 'jsonwebtoken';
 import { PostModel } from './src/models/blog';
 import { UserModel } from './src/models/usermodel';
 import { CommentModel } from './src/models/commentmodel';
-import { CreatePostRequestBody, GetAPostRequestBody, EditPostRequestBody } from './src/interfaces/blog.types';
 
 const app = express();
 app.use(bodyParser.json());
 
-app.get('/', (req: express.Request, res: express.Response) => {
-    return res.status(200).send('Getting Started');
-});
 
 //SIGN UP
-app.post('/signup', async (req: express.Request, res: express.Response, next) => {
+app.post('/signup', async (req: express.Request, res: express.Response) => {
 
     try {
        // Receive req.body
@@ -103,10 +99,64 @@ app.post('/login', async (req: express.Request, res: express.Response) =>  {
         }
 });
 
+// MIDDLEWARE TO PROTECT ROUTES
+async function protectRoute (req: express.Request, res: express.Response, next: express.NextFunction) {
+    try {
+    //1. Getting token and checking if it's there
+    const authorizationHeader = req.headers.authorization as String;
+      if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer')) { 
+        return res.status(401).send({ message: 'Access token is missing' })
+    }
+    const token = authorizationHeader.split(' ')[1]
+
+    if(!token) {
+      return res.status(401).send({ message: 'Token not found'})
+    }
+
+    //2. Verification token
+
+    try {
+     jwt.verify(token, process.env.JWT_SECRET as string) 
+ 
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        return res.status(403).send({ message: 'Token has expired' });
+      } else {
+        return res.status(401).send({ message: 'Invalid token. Please, login again' });
+      }
+    }
+
+
+    /*
+    //3. Check if user still exists
+    try {
+      const user = await UserModel.findOne({ accessToken: token})
+
+      if (!user) {
+        return res.status(400).send({ message: 'The user with this token no longer exists'})
+      } else {
+        next ()
+      }
+    } catch (error) {
+      return res.status(500).send({ message: 'Database Error'})
+    }
+
+    */
+
+     // If everything is fine, proceed to the next middleware or route handler
+      next()
+         
+    } catch (error) {
+      console.log(error)
+        return res.status(500).send({ message: 'Internal Server Error' });
+    }
+}
+
 
 // CREATE A POST
-app.post('/post', async (req: express.Request, res: express.Response) => {
-    const { title, content, author } = req.body;
+app.post('/post', protectRoute, async (req: express.Request, res: express.Response) => {
+    const { userId } = req.params;
+    const { title, content, author, tags } = req.body;
     try {
       if (!title || !author || !content) {
         return res.status(400).send({ message: 'Title, author, and content are required' });
@@ -114,10 +164,13 @@ app.post('/post', async (req: express.Request, res: express.Response) => {
       if (title.length < 15 || title.length > 50) {
         return res.status(400).send({ message: 'Title must be between 15 and 50 characters' });
       }
+      if (tags.length > 3) {
+        return res.status(400).send({ message: 'You can only add 3 tags' });
+      }
   
       const createPost = await PostModel.create(req.body);
 
-      return res.status(200).send({ message: 'Post created successfully', createdAt: new Date(), createPost });
+      return res.status(200).send({ message: 'Post created successfully',  data: createPost });
     } catch (error: any) {
       console.error(error);
       return res.status(500).send({ message: 'Internal Server Error' });
@@ -128,14 +181,20 @@ app.post('/post', async (req: express.Request, res: express.Response) => {
 // GET ALL POSTS
 
 app.get('/post', async (req: express.Request, res: express.Response) => {
+  const { page = 1, perPage = 10, order = 'asc', title = 'blog'} = req.query;
 
-        /*
-        I'll come back to pagination for get all post
-        const { perPage, order } = req.query;
-        const perPageNum = perPage? perPage as unknown as number : 2;
-        const orderVal = order? order as 'asc' | 'desc' : 'asc';
+ /*
+  const { page, perPage, order } = req.query;
+  const pageNum = page ? parseInt(page as string) : 1;
+  const perPageNum = perPage ? parseInt(perPage as string) : 10;
 
-        */
+  {
+  perPage?: number;
+  page?: number;
+  order?: 'asc' | 'desc';
+
+}
+  */
   
     try {
       const allPosts = await PostModel.find();
@@ -149,11 +208,11 @@ app.get('/post', async (req: express.Request, res: express.Response) => {
 
 // GET A POST
 
-app.get('/post/:id', async (req: express.Request, res: express.Response) => {
-    const { id } = req.params;
+app.get('/post/:postId', async (req: express.Request, res: express.Response) => {
+    const { postId } = req.params;
   
     try {
-      const post = await PostModel.findById(id);
+      const post = await PostModel.findById(postId);
       if (!post) {
         return res.status(404).send({ message: 'Post not found' });
       }
@@ -166,15 +225,19 @@ app.get('/post/:id', async (req: express.Request, res: express.Response) => {
 
 
 // EDIT A POST
-app.put('/post/:id', async (req: express.Request, res: express.Response) => {
-    const { id } = req.params;
-    const { title, content } = req.body;
+app.put('/post/:postId', protectRoute, async (req: express.Request, res: express.Response) => {
+    const { postId } = req.params;
+    const { title, content, tags } = req.body;
   
     try {
-      const post = await PostModel.findById(id);
+      const post = await PostModel.findById(postId);
   
       if (!post) {
         return res.status(404).send({ message: 'Post not found' });
+      }
+
+      if (!title || !content) {
+        return res.status(400).send({ message: 'Title and content are required to update a post'})
       }
   
       if (title) {
@@ -186,7 +249,7 @@ app.put('/post/:id', async (req: express.Request, res: express.Response) => {
   
       await post.save();
   
-      return res.status(200).json({ message: 'Post update Successful', id: post._id, updatedAt: new Date() });
+      return res.status(200).json({ message: 'Post update Successful', updatedAt: new Date() });
     } catch (error: any) {
       console.error(error);
       return res.status(500).send({ message: 'Internal Server Error' });
@@ -194,10 +257,10 @@ app.put('/post/:id', async (req: express.Request, res: express.Response) => {
   });   
 
   // DELETE A POST
-app.delete('/post/:id', async (req: express.Request, res: express.Response)=> {
-    const { id } = req.params;
+app.delete('/post/:postId', protectRoute, async (req: express.Request, res: express.Response)=> {
+    const { postId } = req.params;
     try {
-        const post = await PostModel.findById(id);
+        const post = await PostModel.findById(postId);
          if (!post) {
             throw new Error('NOT_FOUND');
          }
@@ -211,20 +274,22 @@ app.delete('/post/:id', async (req: express.Request, res: express.Response)=> {
 });
 
 // ADD COMMENT TO A POST OR COMMENT ON A POST
-app.post('/post/:id/comment', async (req: express.Request, res: express.Response) => {
-  const { id } = req.params;
+app.post('/post/:postId/comment', protectRoute, async (req: express.Request, res: express.Response) => {
+  const { postId } = req.params;
   const { comment } = req.body;
 
   try {
     // Generate a unique comment ID
     const  commentId  = new mongoose.Types.ObjectId();
 
-      const post = await PostModel.findById(id);
+      const post = await PostModel.findById(postId);
 
       if (!post) {
           return res.status(404).send({ message: 'POST NOT FOUND' });
       }
-
+      if (!comment) {
+        return res.status(400).send({ message: 'Add Comment' });
+      }
       if (post) {
          // Push the new comment to the post's comments array
       post.comments.push({ _id: commentId, body: comment }); 
@@ -232,8 +297,6 @@ app.post('/post/:id/comment', async (req: express.Request, res: express.Response
 
       // Create a new comment object
      const newComment = new CommentModel({ _id: commentId, body: comment })
-     
-
 
       // Save the post and the new comment sequentially
       await post.save();
@@ -248,13 +311,13 @@ app.post('/post/:id/comment', async (req: express.Request, res: express.Response
 
 
 //UPDATE/EDIT A COMMENT
-app.put('/post/:id/comment/:commentId', async (req: express.Request, res: express.Response) => {
-    const { id, commentId } = req.params;
+app.put('/post/:postId/comment/:commentId', protectRoute, async (req: express.Request, res: express.Response) => {
+    const { postId, commentId } = req.params;
     const { comment } = req.body;
 
     try {
         const post = await PostModel.findOneAndUpdate(
-            { _id: id, 'comments._id': commentId },
+            { _id: postId, 'comments._id': commentId },
             { $set: { 'comments.$.body': comment } },
             { new: true }
         );  
@@ -262,7 +325,9 @@ app.put('/post/:id/comment/:commentId', async (req: express.Request, res: expres
         if (!post) {
             throw new Error('Post and comment not found!');
         }
-        
+        if (!comment) {
+          return res.status(400).send({ message: 'Update Comment' });
+        }
         await post.save();
         return res.status(200).send({ message: 'Comment Updated', updatedAt: new Date() })
 
@@ -273,79 +338,107 @@ app.put('/post/:id/comment/:commentId', async (req: express.Request, res: expres
 
 
 // LIKE A POST
-app.post('/post/:id/like', async (req: express.Request, res: express.Response) => {
-    const { id } = req.params;
+app.post('/post/:postId/like', protectRoute, async (req: express.Request, res: express.Response) => {
+    const { postId } = req.params;
     
     try {
-        const post = await PostModel.findById(id);
+        const post = await PostModel.findById(postId);
         if (!post) {
           return res.status(404).send({ message: 'Post not found' });
         }
-        if (post.dislikes === 1) {
-            post.dislikes -=1;
-            post.likes +=1
+        
+        let userHasLiked = false;
+        let userHasDisliked = false;
 
-        } else if (post.dislikes === 0) {
-            post.likes +=1
-
-        } else {
-            post.likes = 1;
-            post.dislikes = 0;
+        if (post.likes === 1) {
+        userHasLiked = true;
         }
-        await post.save();
-        return res.status(200).send({ message: 'Post liked'})
- 
-    } catch (error) {
-        return res.status(500).send({ message: 'Internal Server Error'})
-    }
-});
+        if (post.dislikes === 1) {
+          userHasDisliked = true;
+          }
+
+          if (userHasLiked) {
+            return res.status(400).send({ message: 'Post has already been liked' });
+          }
+      
+          // If the user has previously disliked the post, reduce dislike count to 0 and increase like count
+          if (userHasDisliked) {
+            // Reduce dislike count to 0
+            post.dislikes = 0;
+            // Increase like count by 1
+            post.likes = 1;
+          } else {
+            // User hasn't liked or disliked the post, so increase the like count by 1
+            post.likes = 1;
+          }
+
+          // findOneAndUpdate({user:userId},{like},{upsert:true, new:true})
+      
+          await post.save();
+          return res.status(200).send({ message: 'Post liked' });
+      
+        } catch (error) {
+          console.error(error);
+          return res.status(500).send({ message: 'Internal Server Error' });
+        }
+      });
+      
 
 // UNLIKE A POST
-app.post('/post/:id/unlike', async (req: express.Request, res: express.Response) => {
-    const { id } = req.params;
+app.post('/post/:postId/unlike', protectRoute, async (req: express.Request, res: express.Response) => {
+    const { postId } = req.params;
     
     try {
-        const post = await PostModel.findById(id);
+        const post = await PostModel.findById(postId);
         if (!post) {
           return res.status(404).send({ message: 'Post not found' });
         }
         if (post) {
-            post.likes -=1;
             post.likes = 0;
         }
         
-        // You have to like a post for it to be unliked
-        if (post.likes === 0) {
-            throw new Error('Action cannot take place')
-        }
         await post.save();
         return res.status(200).send({ message: 'Post Unliked'})
  
     } catch (error) {
+      console.log(error)
         return res.status(500).send({ message: 'Internal Server Error'})
     }
 });
 
 // DISLIKE A POST
-app.post('/post/:id/dislike', async (req: express.Request, res: express.Response) => {
-    const { id } = req.params;
+app.post('/post/:postId/dislike', protectRoute, async (req: express.Request, res: express.Response) => {
+    const { postId } = req.params;
     
     try {
-        const post = await PostModel.findById(id);
+        const post = await PostModel.findById(postId);
         if (!post) {
           return res.status(404).send({ message: 'Post not found' });
         }
+        let userHasLiked = false;
+        let userHasDisliked = false;
+
         if (post.likes === 1) {
-            post.likes -=1;
-            post.dislikes +=1
-
-        } else if (post.likes === 0) {
-            post.dislikes +=1
-
-        } else {
-            post.dislikes = 1;
-            post.likes = 0;
+        userHasLiked = true;
         }
+        if (post.dislikes === 1) {
+          userHasDisliked = true;
+          }
+
+          if (userHasDisliked) {
+            return res.status(400).send({ message: 'Post has already been disliked' });
+          }
+      
+          // If the user has previously liked the post, reduce like count to 0 and increase dislike count
+          if (userHasLiked) {
+            // Reduce dislike count to 0
+            post.likes = 0;
+            // Increase like count by 1
+            post.dislikes = 1;
+          } else {
+            // User hasn't disliked or liked the post, so increase the dislike count by 1
+            post.dislikes = 1;
+          }
 
         await post.save();
         return res.status(200).send({ message: 'Post Disliked'})
@@ -356,11 +449,11 @@ app.post('/post/:id/dislike', async (req: express.Request, res: express.Response
 });
 
 // REVERT A DISLIKE ON A POST
-app.post('/post/:id/revert-dislike', async (req: express.Request, res: express.Response) => {
-    const { id } = req.params;
+app.post('/post/:postId/revert-dislike', protectRoute, async (req: express.Request, res: express.Response) => {
+    const { postId } = req.params;
 
     try {
-        const post = await PostModel.findById(id);
+        const post = await PostModel.findById(postId);
         if (!post) {
           return res.status(404).send({ message: 'Post not found' });
         }
@@ -368,10 +461,7 @@ app.post('/post/:id/revert-dislike', async (req: express.Request, res: express.R
             post.dislikes -=1;
             post.dislikes = 0;
         }
-        // You have to dislike a post for it to revert-dislike
-        if (post.dislikes === 0) {
-            throw new Error('Action cannot take place')
-        }
+        
         await post.save();
         return res.status(200).send({ message: 'Reverted Dislike'})
  

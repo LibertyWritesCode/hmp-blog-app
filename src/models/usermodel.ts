@@ -16,10 +16,10 @@ const userSchema = new Schema({
         validate: validator.isEmail,
         unique: true
     },
-    roles: {
-        Editor: Number,
-        Admin: Number
-    },
+    //roles: {
+      //  Editor: Number,
+        //Admin: Number
+    //},
     password: {
         type: String,
         required: true,
@@ -30,6 +30,7 @@ const userSchema = new Schema({
      //   type: String,
        // required: true
     // },
+    
     bio: {
         type: String,
         maxlength: 100

@@ -36,6 +36,11 @@ const PostSchema = new Schema(
       ref: 'User',
       required: true,
     },
+    tags: [{
+      type: String,
+      maxlength: 10,
+      required: false
+    }],
     likes: {
       type: Number,
       default: 0,
