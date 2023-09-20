@@ -4,6 +4,7 @@ node_modules/
 uploads/
 dist/
 .env/
+main.ts/
 
 coverage/
 .nyc_output
