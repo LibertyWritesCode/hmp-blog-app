@@ -27,10 +27,15 @@ export const SignUpHandler = async (req: express.Request, res: express.Response)
     const data = await postService.signUp({ name, email, password });
     return res.status(200).send({ message: 'Signup successful', data });
         
-    } catch (error) {
-      console.log(error)
-        return res.status(500).send({ error: 'Internal Server Error'})
+   } catch (e: any) {
+    if (e.message === 'Name already in use') {
+      return res.status(400).send({ message: 'Name already in use' });
     }
+    if (e.message === 'Email already in use') {
+      return res.status(400).send({ message: 'Email already in use' });
+    }
+    return res.status(500).send({ message: 'Internal Server Error' });
+  }
 };
 
 //LOGIN
@@ -48,8 +53,10 @@ export const LoginHandler = async (req: express.Request, res: express.Response) 
 
       return res.status(200).send({ message: 'Login sucessful', token });
          
-        } catch (error) {
-          console.log(error)
+        } catch (e: any) {
+          if (e.message === 'Incorrect email or password') {
+            return res.status(400).send({ message: 'Incorrect email or password' });
+          }
           return res.status(500).send({ message: 'Internal Server Error' });
         }
 };
@@ -57,10 +64,13 @@ export const LoginHandler = async (req: express.Request, res: express.Response) 
 
 // CREATE A POST
 export const CreatePostHandler = async (req: express.Request, res: express.Response) => {
-    const { title, content, author, tags } = req.body;
+    const { userId } = req.params;
+    const { title, content, tags } = req.body;
+
     try {
-      if (!title || !author || !content) {
-        return res.status(400).send({ message: 'Title, author, and content are required' });
+
+      if (!title || !content) {
+        return res.status(400).send({ message: 'Title and content are required' });
       }
       if (title.length < 15 || title.length > 50) {
         return res.status(400).send({ message: 'Title must be between 15 and 50 characters' });
@@ -69,7 +79,7 @@ export const CreatePostHandler = async (req: express.Request, res: express.Respo
         return res.status(400).send({ message: 'You can only add 3 tags' });
       }
   
-      const createPost = await postService.createPost(req.body);
+      const createPost = await postService.createPost(userId, { title, content, author: userId, tags});
 
       return res.status(200).send({ message: 'Post created successfully',  data: createPost });
     } catch (error) {
@@ -81,10 +91,17 @@ export const CreatePostHandler = async (req: express.Request, res: express.Respo
 // GET ALL POSTS
 
 export const GetAllPostHandler = async (req: express.Request, res: express.Response) => {
-  const { page = 1, perPage = 10, order = 'asc', title = 'blog' } = req.query;
+  const { searchTerm, page, perPage, order } = req.query;
   
     try {
-      const allPosts = await postService.getAllPosts();
+      const query = {
+        searchTerm: searchTerm as string,
+        page: page as unknown as number,
+        perPage: perPage as unknown as number,
+        order: order as 'asc' | 'desc',
+      };
+
+      const allPosts = await postService.getAllPosts(query);
       return res.status(200).send(allPosts);
     } catch (error) {
       return res.status(500).send({ message: 'Internal Server Error' });
@@ -104,7 +121,6 @@ export const GetAPostHandler = async (req: express.Request, res: express.Respons
       }
       return res.status(200).send(post);
     } catch (error: any) {
-      console.error(error);
       return res.status(500).send({ message: 'Internal Server Error' });
     }
   };
@@ -116,11 +132,16 @@ export const UpdateAPostHandler = async (req: express.Request, res: express.Resp
     const { title, content, tags } = req.body;
   
     try {
+      if (!title || !content) {
+        return res.status(400).send({ message: 'No changes made'})
+      }
       const post = await postService.updateAPost(postId, { title, content, tags });
   
       return res.status(200).json({ message: 'Post update Successful', updatedAt: new Date() });
-    } catch (error: any) {
-      console.error(error);
+    } catch (e: any) {
+      if (e.message === 'NOT FOUND') {
+        return res.status(404).send({ message: 'Post Not Found'})
+      }
       return res.status(500).send({ message: 'Internal Server Error' });
     }
   };   
@@ -132,8 +153,11 @@ export const UpdateAPostHandler = async (req: express.Request, res: express.Resp
         const post = await postService.deleteAPost(postId);
         return res.status(200).send({ message: 'Post Deleted'})
 
-    } catch (error) {
-        return res.status(500).send({ message: 'Internal Server Error' })
+    } catch (e: any) {
+      if (e.message === 'NOT FOUND') {
+        return res.status(404).send({ message: 'Post not found'})
+      }
+      return res.status(500).send({ message: 'Internal Server Error' })
     }   
 };
 
@@ -143,10 +167,17 @@ export const CommentOnAPostHandler = async (req: express.Request, res: express.R
   const { comment } = req.body;
 
   try {
-      const data = await postService.commentOnAPost(postId, comment);
-      return res.status(200).send({ message: 'Comment Added', data});
-  } catch (error) {
-      console.error(error);
+    if (!comment) {
+      return res.status(400).send({ message: 'Add Comment' })
+    }
+      const post = await postService.commentOnAPost(postId, { comment });
+      return res.status(200).send({ message: 'Comment Added', data: post});
+
+    } catch (e: any) {
+      if (e.message === 'POST NOT FOUND!') {
+        return res.status(404).send({ message: 'Post not found' })
+      }
+      console.log(e)
       return res.status(500).send({ message: 'Internal Server Error' });
   }
 };
@@ -158,11 +189,17 @@ export const UpdateACommentHandler = async (req: express.Request, res: express.R
     const { comment } = req.body;
 
     try {
-        const post = await postService.updateAComment(postId, commentId, comment)
+      if (!comment) {
+        return res.status(400).send({ message: 'Update Comment'})
+    }
+        const post = await postService.updateAComment(postId, commentId, { comment })
 
-        return res.status(200).send({ message: 'Comment Updated', updatedAt: new Date() })
+        return res.status(200).send({ message: 'Comment Updated', updatedAt: new Date()})
 
-    } catch (error) {
+    } catch (e: any) {
+      if (e.message === 'Not Found') {
+        return res.status(404).send({ message: 'Post and comment not found!'})
+      }
         return res.status(500).send({ message: 'Internal Server Error'})
     }
 };
@@ -176,8 +213,13 @@ export const LikeAPostHandler = async (req: express.Request, res: express.Respon
         const post = await postService.likeAPost(postId);
           return res.status(200).send({ message: 'Post liked' });
       
-        } catch (error) {
-          console.error(error);
+        } catch (e: any) {
+          if (e.message === 'Post not found') {
+            return res.status(404).send({ message: 'Post not found!'})
+          }
+          if (e.message === 'Post has already been liked') {
+            return res.status(400).send({ message: 'Post has already been liked'})
+          }
           return res.status(500).send({ message: 'Internal Server Error' });
         }
     };
@@ -192,8 +234,10 @@ export const UnlikeAPostHandler = async (req: express.Request, res: express.Resp
 
         return res.status(200).send({ message: 'Post Unliked'})
  
-    } catch (error) {
-      console.log(error)
+      } catch (e: any) {
+        if (e.message === 'Post not found') {
+          return res.status(404).send({ message: 'Post not found!'})
+        }
         return res.status(500).send({ message: 'Internal Server Error'})
     }
 };
@@ -206,7 +250,13 @@ export const DislikeAPostHandler = async (req: express.Request, res: express.Res
         const post = await postService.dislikeAPost(postId);
         return res.status(200).send({ message: 'Post Disliked'})
  
-    } catch (error) {
+      } catch (e: any) {
+        if (e.message === 'Post not found') {
+          return res.status(404).send({ message: 'Post not found!'})
+        }
+        if (e.message === 'Post has already been disliked') {
+          return res.status(400).send({ message: 'Post has already been disliked'})
+        }
         return res.status(500).send({ message: 'Internal Server Error'})
     }
 };
@@ -228,7 +278,10 @@ export const RevertDislikeAPostHandler = async (req: express.Request, res: expre
         await post.save();
         return res.status(200).send({ message: 'Reverted Dislike'})
  
-    } catch (error) {
+      } catch (e: any) {
+        if (e.message === 'Post not found') {
+          return res.status(404).send({ message: 'Post not found!'})
+        }
         return res.status(500).send({ message: 'Internal Server Error'})
     }
 };

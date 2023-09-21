@@ -1,6 +1,6 @@
 import express from 'express';
 import { protectRoute } from '../controllers/auth.controller'
-import { SignUpHandler, LoginHandler, CreatePostHandler, 
+import { CreatePostHandler, 
     GetAllPostHandler, GetAPostHandler, UpdateAPostHandler, 
     DeleteAPostHandler, CommentOnAPostHandler, UpdateACommentHandler, 
     LikeAPostHandler, UnlikeAPostHandler, DislikeAPostHandler, 
@@ -8,20 +8,15 @@ import { SignUpHandler, LoginHandler, CreatePostHandler,
 
 const router = express.Router();
 
-// Signup
-router.post('/', SignUpHandler);
-
-// Login
-router.post('/', LoginHandler);
 
 // Create a post
-router.post('/', protectRoute, CreatePostHandler);
+router.post('/:userId', protectRoute, CreatePostHandler);
 
 // Get all posts
 router.get('/', GetAllPostHandler);
 
 // Get a post
-router.post('/:postId', GetAPostHandler);
+router.get('/:postId', GetAPostHandler);
 
 // Edit/Update a particular post
 router.put('/:postId', protectRoute, UpdateAPostHandler);

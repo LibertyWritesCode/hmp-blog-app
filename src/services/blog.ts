@@ -7,8 +7,9 @@ import { CommentModel } from '../models/commentmodel';
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+//import { getAllBlogPost } from '../client/blog.client';
 import {SignUpRequestBody, LoginRequestBody, CreatePostRequestBody, 
-    UpdatePostRequestBody, CommentOnPostRequestBody} from '../interfaces/blog.types';
+  GetAllPostRequest, UpdatePostRequestBody, CommentOnPostRequestBody} from '../interfaces/blog.types';
 
 //SIGN UP
 export const signUp = async function (body: SignUpRequestBody): Promise<any> {
@@ -63,15 +64,22 @@ export const login = async function (body: LoginRequestBody): Promise<any> {
 
   
 // CREATE A POST
-export const createPost = async function (body: CreatePostRequestBody): Promise<any> {
-    const { title, content, author, tags } = body;
-    return await PostModel.create({ title, content, author, tags});
+export const createPost = async function (userId: string, body: CreatePostRequestBody): Promise<any> {
+    const { title, content, tags } = body;
+    return await PostModel.create({ title, content, author: userId, tags});
   };
 
 // GET ALL POSTS
-  export const getAllPosts = async function (): Promise<any> {
-    return await PostModel.find();
-  }
+  export const getAllPosts = async function (request: GetAllPostRequest): Promise<any> {
+    const { searchTerm, page, perPage, order } = request;
+    const post = await PostModel.find({
+      searchTerm: searchTerm as string,
+      page: page as number,
+      perPage: perPage as number,
+      order: order as 'asc' | 'desc',
+    });
+    return post
+  };
 
 
   // GET A POST
@@ -86,7 +94,7 @@ export const updateAPost = async function (postId: string, body: UpdatePostReque
       const post = await PostModel.findById(postId);
   
       if (!post) {
-        throw new Error('NOT_FOUND');
+        throw new Error('NOT FOUND');
       }
   
       if (title) {
@@ -104,7 +112,7 @@ export const updateAPost = async function (postId: string, body: UpdatePostReque
   export const deleteAPost = async function (postId: string): Promise<any> {
         const post = await PostModel.findById(postId);
          if (!post) {
-            throw new Error('NOT_FOUND');
+            throw new Error('NOT FOUND');
          }
          // then delete
         await post.deleteOne();
@@ -123,9 +131,6 @@ export const commentOnAPost = async function (postId: string, body: CommentOnPos
       if (!post) {
           throw new Error('POST NOT FOUND!')
       }
-      if (!comment) {
-        throw new Error('Add Comment')
-      }
       if (post) {
          // Push the new comment to the post's comments array
       post.comments.push({ _id: commentId, body: comment }); 
@@ -138,7 +143,7 @@ export const commentOnAPost = async function (postId: string, body: CommentOnPos
       await post.save();
      await newComment.save();
 
-      return { data: comment }
+      return post 
 };
 
 
@@ -153,10 +158,7 @@ export const updateAComment = async function (postId: string, commentId: string,
         );  
 
         if (!post) {
-            throw new Error('Post and comment not found!');
-        }
-        if (!comment) {
-            throw new Error('Update Comment' );
+            throw new Error('Not Found');
         }
         await post.save();
         return post;

@@ -28,23 +28,6 @@ export async function protectRoute (req: express.Request, res: express.Response,
       }
     }
 
-
-    /*
-    //3. Check if user still exists
-    try {
-      const user = await UserModel.findOne({ accessToken: token})
-
-      if (!user) {
-        return res.status(400).send({ message: 'The user with this token no longer exists'})
-      } else {
-        next ()
-      }
-    } catch (error) {
-      return res.status(500).send({ message: 'Database Error'})
-    }
-
-    */
-
      // If everything is fine, proceed to the next middleware or route handler
       next()
          

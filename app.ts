@@ -20,6 +20,7 @@ app.use(signupRouter);
 app.use(loginRouter);
 
 app.use('/post', postRouter);
+
       
 app.listen(4000, async () => {
     console.log('Server is running oo')
