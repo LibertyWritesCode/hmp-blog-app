@@ -1,8 +1,65 @@
+import dotenv from 'dotenv';
+dotenv.config()
+
 import { PostModel } from '../models/blog';
 import { UserModel } from '../models/usermodel';
 import { CommentModel } from '../models/commentmodel';
 import mongoose from 'mongoose';
-import { CreatePostRequestBody, UpdatePostRequestBody, CommentOnPostRequestBody } from '../interfaces/blog.types';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import {SignUpRequestBody, LoginRequestBody, CreatePostRequestBody, 
+    UpdatePostRequestBody, CommentOnPostRequestBody} from '../interfaces/blog.types';
+
+//SIGN UP
+export const signUp = async function (body: SignUpRequestBody): Promise<any> {
+
+        const { name, email, password} = body;
+
+         //4. Check if the name already exists in the database
+    const existingName = await UserModel.findOne({ name });
+    if (existingName) {
+        throw new Error('Name already in use');
+    }
+
+       //5. Check if the email already exists in the database
+    const existingEmail = await UserModel.findOne({ email });
+    if (existingEmail) {
+        throw new Error('Email already in use');
+    }
+
+    //6. Hash the password before saving it in the database
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    //7. Save the user to the database 
+    const newUser = await UserModel.create({ 
+      name: body.name, 
+      email: body.email, 
+      password: hashedPassword });
+
+    //8. Generate a unique token for the user (JWT token)
+    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
+    return token;
+        
+};
+
+
+// LOGIN
+export const login = async function (body: LoginRequestBody): Promise<any> {
+    const { email, password } = body
+     //2. Check if user exists and pwd is correct
+     const user = await UserModel.findOne({ email: email }).select('+password')
+
+     // Compare the provided password with the hashed password stored in the database
+     if (!user || !(await bcrypt.compare(password, user.password))) {
+       throw new Error('Incorrect email or password');
+     }
+    
+   //3. If everything is ok, send token back to client
+   const token =  jwt.sign({ userId: user._id }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
+   return token;
+      
+}
+
 
   
 // CREATE A POST
@@ -81,7 +138,7 @@ export const commentOnAPost = async function (postId: string, body: CommentOnPos
       await post.save();
      await newComment.save();
 
-      return post
+      return { data: comment }
 };
 
 

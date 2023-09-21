@@ -1,13 +1,6 @@
-import dotenv from 'dotenv';
-dotenv.config()
-
 import express from 'express';
-import mongoose from 'mongoose';
 import validator from 'validator';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { UserModel } from '../models/usermodel';
-import * as blogService from '../services/blog'
+import * as postService from '../services/blog'
 
 
   
@@ -30,35 +23,9 @@ export const SignUpHandler = async (req: express.Request, res: express.Response)
         if (password.length < 8) {
           return res.status(400).send({ message: 'Password must be at least 8 characters'})
         }
-        //if (password !== passwordConfirm) {
-          //return res.status(400).json({ error: 'Passwords do not match' });
-        //}
-
-         //4. Check if the name already exists in the database
-    const existingName = await UserModel.findOne({ name });
-    if (existingName) {
-      return res.status(400).send({ message: 'Name already in use' });
-    }
-
-       //5. Check if the email already exists in the database
-    const existingEmail = await UserModel.findOne({ email });
-    if (existingEmail) {
-      return res.status(400).send({ message: 'Email already in use' });
-    }
-
-    //6. Hash the password before saving it in the database
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    //7. Save the user to the database 
-    const newUser = await UserModel.create({ 
-      name: req.body.name, 
-      email: req.body.email, 
-      password: hashedPassword });
-
-    //8. Generate a unique token for the user (JWT token)
-    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
-
-    return res.status(200).send({ message: 'Signup successful', token, data: { user: newUser} });
+        
+    const data = await postService.signUp({ name, email, password });
+    return res.status(200).send({ message: 'Signup successful', data });
         
     } catch (error) {
       console.log(error)
@@ -77,15 +44,8 @@ export const LoginHandler = async (req: express.Request, res: express.Response) 
         }
           
         //2. Check if user exists and pwd is correct
-        const user = await UserModel.findOne({ email: email }).select('+password')
-    
-        // Compare the provided password with the hashed password stored in the database
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-          return res.status(400).send({ message: 'Incorrect email or password' });
-        }
-       
-      //3. If everything is ok, send token back to client
-      const token =  jwt.sign({ userId: user._id }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
+        const token = await postService.login({ email, password })
+
       return res.status(200).send({ message: 'Login sucessful', token });
          
         } catch (error) {
@@ -109,11 +69,10 @@ export const CreatePostHandler = async (req: express.Request, res: express.Respo
         return res.status(400).send({ message: 'You can only add 3 tags' });
       }
   
-      const createPost = await blogService.createPost(req.body);
+      const createPost = await postService.createPost(req.body);
 
       return res.status(200).send({ message: 'Post created successfully',  data: createPost });
-    } catch (error: any) {
-      console.error(error);
+    } catch (error) {
       return res.status(500).send({ message: 'Internal Server Error' });
     }
   };
@@ -125,7 +84,7 @@ export const GetAllPostHandler = async (req: express.Request, res: express.Respo
   const { page = 1, perPage = 10, order = 'asc', title = 'blog' } = req.query;
   
     try {
-      const allPosts = await blogService.getAllPosts();
+      const allPosts = await postService.getAllPosts();
       return res.status(200).send(allPosts);
     } catch (error) {
       return res.status(500).send({ message: 'Internal Server Error' });
@@ -139,7 +98,7 @@ export const GetAPostHandler = async (req: express.Request, res: express.Respons
     const { postId } = req.params;
   
     try {
-      const post = await blogService.getAPost(postId);
+      const post = await postService.getAPost(postId);
       if (!post) {
         return res.status(404).send({ message: 'Post not found' });
       }
@@ -157,7 +116,7 @@ export const UpdateAPostHandler = async (req: express.Request, res: express.Resp
     const { title, content, tags } = req.body;
   
     try {
-      const post = await blogService.updateAPost(postId, { title, content, tags });
+      const post = await postService.updateAPost(postId, { title, content, tags });
   
       return res.status(200).json({ message: 'Post update Successful', updatedAt: new Date() });
     } catch (error: any) {
@@ -170,7 +129,7 @@ export const UpdateAPostHandler = async (req: express.Request, res: express.Resp
   export const DeleteAPostHandler = async (req: express.Request, res: express.Response) => {
     const { postId } = req.params;
     try {
-        const post = await blogService.deleteAPost(postId);
+        const post = await postService.deleteAPost(postId);
         return res.status(200).send({ message: 'Post Deleted'})
 
     } catch (error) {
@@ -184,11 +143,8 @@ export const CommentOnAPostHandler = async (req: express.Request, res: express.R
   const { comment } = req.body;
 
   try {
-    // Generate a unique comment ID
-    const  commentId  = new mongoose.Types.ObjectId();
-
-      const post = await blogService.commentOnAPost(postId, { comment });
-      return res.status(200).send({ message: 'Comment Added', data: comment });
+      const data = await postService.commentOnAPost(postId, comment);
+      return res.status(200).send({ message: 'Comment Added', data});
   } catch (error) {
       console.error(error);
       return res.status(500).send({ message: 'Internal Server Error' });
@@ -202,11 +158,7 @@ export const UpdateACommentHandler = async (req: express.Request, res: express.R
     const { comment } = req.body;
 
     try {
-        const post = await blogService.updateAComment(
-            { _id: postId, 'comments._id': commentId },
-            { $set: { 'comments.$.body': comment } },
-            { new: true }
-        );  
+        const post = await postService.updateAComment(postId, commentId, comment)
 
         return res.status(200).send({ message: 'Comment Updated', updatedAt: new Date() })
 
@@ -221,7 +173,7 @@ export const LikeAPostHandler = async (req: express.Request, res: express.Respon
     const { postId } = req.params;
     
     try {
-        const post = await blogService.likeAPost(postId);
+        const post = await postService.likeAPost(postId);
           return res.status(200).send({ message: 'Post liked' });
       
         } catch (error) {
@@ -236,7 +188,7 @@ export const UnlikeAPostHandler = async (req: express.Request, res: express.Resp
     const { postId } = req.params;
     
     try {
-        const post = await blogService.unlikeAPost(postId);
+        const post = await postService.unlikeAPost(postId);
 
         return res.status(200).send({ message: 'Post Unliked'})
  
@@ -251,7 +203,7 @@ export const DislikeAPostHandler = async (req: express.Request, res: express.Res
     const { postId } = req.params;
     
     try {
-        const post = await blogService.dislikeAPost(postId);
+        const post = await postService.dislikeAPost(postId);
         return res.status(200).send({ message: 'Post Disliked'})
  
     } catch (error) {
@@ -264,7 +216,7 @@ export const RevertDislikeAPostHandler = async (req: express.Request, res: expre
     const { postId } = req.params;
 
     try {
-        const post = await blogService.revertDislikeAPost(postId);
+        const post = await postService.revertDislikeAPost(postId);
         if (!post) {
           return res.status(404).send({ message: 'Post not found' });
         }

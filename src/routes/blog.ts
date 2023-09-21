@@ -1,25 +1,18 @@
 import express from 'express';
-//import {
-  //CreateTodoHandler,
-  //DeleteTodoByIdHandler,
-  //GetAllTodosHandler,
-  //GetTodoByIdHandler,
-  //UpdateTodoHandler
-//} from '../controllers/todo.controller';
 import { protectRoute } from '../controllers/auth.controller'
 import { SignUpHandler, LoginHandler, CreatePostHandler, 
     GetAllPostHandler, GetAPostHandler, UpdateAPostHandler, 
     DeleteAPostHandler, CommentOnAPostHandler, UpdateACommentHandler, 
     LikeAPostHandler, UnlikeAPostHandler, DislikeAPostHandler, 
-    RevertDislikeAPostHandler } from 'src/controllers/blog';
+    RevertDislikeAPostHandler } from '../controllers/blog';
 
 const router = express.Router();
 
 // Signup
-router.post('/', protectRoute, SignUpHandler);
+router.post('/', SignUpHandler);
 
 // Login
-router.post('/', protectRoute, LoginHandler);
+router.post('/', LoginHandler);
 
 // Create a post
 router.post('/', protectRoute, CreatePostHandler);
