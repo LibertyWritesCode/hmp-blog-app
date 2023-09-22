@@ -7,7 +7,6 @@ import { CommentModel } from '../models/commentmodel';
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-//import { getAllBlogPost } from '../client/blog.client';
 import {SignUpRequestBody, LoginRequestBody, CreatePostRequestBody, 
   GetAllPostRequest, UpdatePostRequestBody, CommentOnPostRequestBody} from '../interfaces/blog.types';
 
@@ -72,12 +71,7 @@ export const createPost = async function (userId: string, body: CreatePostReques
 // GET ALL POSTS
   export const getAllPosts = async function (request: GetAllPostRequest): Promise<any> {
     const { searchTerm, page, perPage, order } = request;
-    const post = await PostModel.find({
-      searchTerm: searchTerm as string,
-      page: page as number,
-      perPage: perPage as number,
-      order: order as 'asc' | 'desc',
-    });
+    const post = await PostModel.find()
     return post
   };
 
