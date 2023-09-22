@@ -12,32 +12,42 @@ import {SignUpRequestBody, LoginRequestBody, CreatePostRequestBody,
 
 //SIGN UP
 export const signUp = async function (body: SignUpRequestBody): Promise<any> {
-
+      // Receive request body data
         const { name, email, password} = body;
 
-         //4. Check if the name already exists in the database
+      //1. Check if the name already exists in the database
     const existingName = await UserModel.findOne({ name });
-    if (existingName) {
-        throw new Error('Name already in use');
-    }
+        if (existingName) {
+      // If name is already in use, throw an error
+          throw new Error('Name already in use');
+        }
 
-       //5. Check if the email already exists in the database
+      //2. Check if the email already exists in the database
     const existingEmail = await UserModel.findOne({ email });
     if (existingEmail) {
+      // If email is already in use, throw an error
         throw new Error('Email already in use');
     }
 
-    //6. Hash the password before saving it in the database
+    //3. Hash the password before saving it in the database
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    //7. Save the user to the database 
+    //4. Save the user to the database 
     const newUser = await UserModel.create({ 
       name: body.name, 
       email: body.email, 
       password: hashedPassword });
 
-    //8. Generate a unique token for the user (JWT token)
-    const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
+    //5. Generate a unique token for the user (JWT token)
+    const token = jwt.sign(
+        // Payload to be included in the token
+        { userId: newUser._id },
+        // JWT secret key
+        process.env.JWT_SECRET as string,
+        // Token expiration time
+        { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+    // Return generated token
     return token;
         
 };
@@ -45,219 +55,309 @@ export const signUp = async function (body: SignUpRequestBody): Promise<any> {
 
 // LOGIN
 export const login = async function (body: LoginRequestBody): Promise<any> {
-    const { email, password } = body
-     //2. Check if user exists and pwd is correct
-     const user = await UserModel.findOne({ email: email }).select('+password')
+   // Receive request body data
+    const { email, password } = body;
 
-     // Compare the provided password with the hashed password stored in the database
-     if (!user || !(await bcrypt.compare(password, user.password))) {
-       throw new Error('Incorrect email or password');
-     }
-    
-   //3. If everything is ok, send token back to client
-   const token =  jwt.sign({ userId: user._id }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
-   return token;
-      
-}
+    // 1. Check if user exists and pwd is correct based on the provided request body
+    const user = await UserModel.findOne({ email: email }).select('+password');
 
+    // 2. Compare the provided password with the hashed password stored in the database
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+        // If the user doesn't exist or the password is incorrect, throw an error
+        throw new Error('Incorrect email or password');
+    }
+
+    // 3. If everything is okay, generate a JWT token
+  const token =  jwt.sign({ userId: user._id }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
+
+    // Return the generated token
+    return token;
+};
 
   
 // CREATE A POST
 export const createPost = async function (userId: string, body: CreatePostRequestBody): Promise<any> {
+  // Receive request body data
     const { title, content, tags } = body;
+     // Use PostModel.create() to create a new post document and return the newly created post
     return await PostModel.create({ title, content, author: userId, tags});
   };
 
-// GET ALL POSTS
-  export const getAllPosts = async function (request: GetAllPostRequest): Promise<any> {
-    const { searchTerm, page, perPage, order } = request;
-    const post = await PostModel.find()
-    return post
-  };
+
+// GET ALL POSTS 
+export const getAllPosts = async function (request: GetAllPostRequest): Promise<any> {
+  // Receive request parameters
+  const { searchTerm, page, perPage, order } = request;
+  // Use PostModel to find all posts
+  const posts = await PostModel.find();
+  // Return the array of found posts
+  return posts;
+};
 
 
   // GET A POST
 export const getAPost = async function (postId: string): Promise<any> {
-    return await PostModel.findById(postId);
-}
+  // Use PostModel to find the post by its ID
+  const post = await PostModel.findById(postId);
+  // Return the found post 
+  return post;
+};
+
 
 // UPDATE/EDIT A POST
 export const updateAPost = async function (postId: string, body: UpdatePostRequestBody): Promise<any> {
-    const { title, content, tags } = body;
-  
-      const post = await PostModel.findById(postId);
-  
-      if (!post) {
-        throw new Error('NOT FOUND');
-      }
-  
-      if (title) {
-        post.title = title;
-      }
-      if (content) {
-        post.content = content;
-      }
-  
-      await post.save();
-      return post;
-  };   
+  // Receive request body data
+  const { title, content, tags } = body;
+
+  // Find the post by its ID using PostModel
+  const post = await PostModel.findById(postId);
+
+  // Check if the post exists
+  if (!post) {
+      // If the post is not found, throw an error
+      throw new Error('NOT FOUND');
+  }
+
+  // Check if title property is provided and update it 
+  if (title) {
+      post.title = title;
+  }
+
+  // Check if content property is provided and update it 
+  if (content) {
+      post.content = content;
+  }
+
+  // Save the updated post
+  await post.save();
+
+  // Return the updated post
+  return post;
+};
+ 
 
   // DELETE A POST
-  export const deleteAPost = async function (postId: string): Promise<any> {
-        const post = await PostModel.findById(postId);
-         if (!post) {
-            throw new Error('NOT FOUND');
-         }
-         // then delete
-        await post.deleteOne();
-        return post
-    };
+  export const deleteAPost = async function (postId: string): Promise<void> {
+  // Find the post by its ID using PostModel
+  const post = await PostModel.findById(postId);
+
+  // Check if the post exists
+  if (!post) {
+    // If the post is not found, throw an error 
+      throw new Error('NOT FOUND');
+  }
+
+  // Delete the post
+  await post.deleteOne();
+
+};
+
 
 // ADD COMMENT TO A POST OR COMMENT ON A POST
 export const commentOnAPost = async function (postId: string, body: CommentOnPostRequestBody): Promise<any> {
+  // Receive request body data
   const { comment } = body;
 
-    // Generate a unique comment ID
-    const commentId = new mongoose.Types.ObjectId();
+  // Generate a unique comment ID using mongoose
+  const commentId = new mongoose.Types.ObjectId();
 
-      const post = await PostModel.findById(postId);
+  // Find the post by its postId
+  const post = await PostModel.findById(postId);
 
-      if (!post) {
-          throw new Error('POST NOT FOUND!')
-      }
-      if (post) {
-         // Push the new comment to the post's comments array
-      post.comments.push({ _id: commentId, body: comment }); 
-      }
+  // Check if the post exists
+  if (!post) {
+  // If the post is not found, throw an error
+      throw new Error('POST NOT FOUND!');
+  }
 
-      // Create a new comment object
-     const newComment = new CommentModel({ _id: commentId, body: comment })
+  // If the post exists, push the new comment to the post's comments array
+  post.comments.push({ _id: commentId, body: comment });
 
-      // Save the post and the new comment sequentially
-      await post.save();
-     await newComment.save();
+  // Create a new comment object using CommentModel
+  const newComment = new CommentModel({ _id: commentId, body: comment });
 
-      return post 
+  // Save the post and the new comment 
+  await post.save();
+  await newComment.save();
+
+  // Return the updated post
+  return post;
 };
+
 
 
 //UPDATE/EDIT A COMMENT
 export const updateAComment = async function (postId: string, commentId: string, body: CommentOnPostRequestBody): Promise<any> {
-    const { comment } = body;
+ // Receive request body data
+  const { comment } = body;
 
-        const post = await PostModel.findOneAndUpdate(
-            { _id: postId, 'comments._id': commentId },
-            { $set: { 'comments.$.body': comment } },
-            { new: true }
-        );  
+  // Find the post with the specified postId and comment with commentId
+  const post = await PostModel.findOneAndUpdate(
+      // Query to find the post and the specific comment within it
+      { _id: postId, 'comments._id': commentId },
+      // Update the body of the specific comment
+      { $set: { 'comments.$.body': comment } },
+      // Option to return the updated document
+      { new: true }
+  );
 
-        if (!post) {
-            throw new Error('Not Found');
-        }
-        await post.save();
-        return post;
+  // Check if the post exists
+  if (!post) {
+  // If the post is not found, throw an error
+      throw new Error('Not Found');
+  }
+
+  // Save the updated post
+  await post.save();
+
+  // Return the updated post
+  return post;
 };
 
 
-// LIKE A POST
+
+// LIKE A POST function
 export const likeAPost = async function (postId: string): Promise<any> {
-    
-        const post = await PostModel.findById(postId);
-        if (!post) {
-          throw new Error('Post not found');
-        }
-        
-        let userHasLiked = false;
-        let userHasDisliked = false;
+  // Find the post by its ID using PostModel
+  const post = await PostModel.findById(postId);
 
-        if (post.likes === 1) {
-        userHasLiked = true;
-        }
-        if (post.dislikes === 1) {
-          userHasDisliked = true;
-          }
+  // Check if the post exists
+  if (!post) {
+      // If the post is not found, throw an error
+      throw new Error('Post not found');
+  }
 
-          if (userHasLiked) {
-            throw new Error('Post has already been liked');
-          }
-      
-          // If the user has previously disliked the post, reduce dislike count to 0 and increase like count
-          if (userHasDisliked) {
-            // Reduce dislike count to 0
-            post.dislikes = 0;
-            // Increase like count by 1
-            post.likes = 1;
-          } else {
-            // User hasn't liked or disliked the post, so increase the like count by 1
-            post.likes = 1;
-          }
-          await post.save();
-          return post
-    };
+  // Set the variable to check whether the user has previously liked or disliked to false
+  let userHasLiked = false;
+  let userHasDisliked = false;
+
+  // Check if the post has been previously liked
+  if (post.likes === 1) {
+      userHasLiked = true;
+  }
+
+  // Check if the post has been previously disliked
+  if (post.dislikes === 1) {
+      userHasDisliked = true;
+  }
+
+  // If the user has already liked the post, throw an error
+  if (userHasLiked) {
+      throw new Error('Post has already been liked');
+  }
+
+  // If the user has previously disliked the post, update the counts
+  if (userHasDisliked) {
+      // Reduce dislike count to 0
+      post.dislikes = 0;
+      // Increase like count by 1
+      post.likes = 1;
+  } else {
+      // If the user hasn't liked or disliked the post previously, increase the like count by 1
+      post.likes = 1;
+  }
+
+  // Save the post with the updated like and dislike counts
+  await post.save();
+
+  // Return the updated post
+  return post;
+};
+
       
 
 // UNLIKE A POST
 export const unlikeAPost = async function (postId: string): Promise<any> {
- 
-        const post = await PostModel.findById(postId);
-        if (!post) {
-          throw new Error('Post not found');
-        }
-        if (post) {
-            post.likes = 0;
-        }
-        
-        await post.save();
-        return post;
+  // Find the post by its ID using PostModel
+  const post = await PostModel.findById(postId);
+
+  // Check if the post exists
+  if (!post) {
+      // If the post is not found, throw an error
+      throw new Error('Post not found');
+  }
+
+   // If the post exists, set the 'likes' count to 0
+  if (post) {
+      post.likes = 0;
+  }
+  
+  // Save the post with the updated 'likes' count
+  await post.save();
+
+  // Return the updated post
+  return post;
 };
+
 
 // DISLIKE A POST
 export const dislikeAPost = async function (postId: string): Promise<any> {
- 
-        const post = await PostModel.findById(postId);
-        if (!post) {
-          throw new Error('Post not found');
-        }
-        let userHasLiked = false;
-        let userHasDisliked = false;
+  // Find the post by its ID using PostModel
+  const post = await PostModel.findById(postId);
 
-        if (post.likes === 1) {
-        userHasLiked = true;
-        }
-        if (post.dislikes === 1) {
-          userHasDisliked = true;
-          }
+  // Check if the post exists
+  if (!post) {
+      // If the post is not found, throw an error
+      throw new Error('Post not found');
+  }
 
-          if (userHasDisliked) {
-            throw new Error('Post has already been disliked');
-          }
-      
-          // If the user has previously liked the post, reduce like count to 0 and increase dislike count
-          if (userHasLiked) {
-            // Reduce dislike count to 0
-            post.likes = 0;
-            // Increase like count by 1
-            post.dislikes = 1;
-          } else {
-            // User hasn't disliked or liked the post, so increase the dislike count by 1
-            post.dislikes = 1;
-          }
+  // Set the variable to check whether the user has previously liked or disliked to false
+  let userHasLiked = false;
+  let userHasDisliked = false;
 
-        await post.save();
-        return post;
+  // Check if the post has been previously liked
+  if (post.likes === 1) {
+      userHasLiked = true;
+  }
+
+  // Check if the post has been previously disliked
+  if (post.dislikes === 1) {
+      userHasDisliked = true;
+  }
+
+  // If the user has already disliked the post, throw an error
+  if (userHasDisliked) {
+      throw new Error('Post has already been disliked');
+  }
+
+  // If the user has previously liked the post, update the counts
+  if (userHasLiked) {
+      // Reduce like count to 0
+      post.likes = 0;
+      // Increase dislike count by 1
+      post.dislikes = 1;
+  } else {
+      // If the user hasn't disliked or liked the post previously, increase the dislike count by 1
+      post.dislikes = 1;
+  }
+
+  // Save the post with the updated like and dislike counts
+  await post.save();
+
+  // Return the updated post
+  return post;
 };
+
 
 // REVERT A DISLIKE ON A POST
 export const revertDislikeAPost = async function (postId: string): Promise<any> {
-        const post = await PostModel.findById(postId);
-        if (!post) {
-          throw new Error('Post not found');
-        }
-        if (post) {
-            post.dislikes -=1;
-            post.dislikes = 0;
-        }
-        
-        await post.save();
-        return post;
+  // Find the post by its ID using PostModel
+  const post = await PostModel.findById(postId);
+
+  // Check if the post exists
+  if (!post) {
+      // If the post is not found, throw an error
+      throw new Error('Post not found');
+  }
+
+  // If the post exists, reset the 'dislikes' count to 0
+  if (post) {
+      post.dislikes = 0;
+  }
+  
+  // Save the post with the updated 'dislikes' count
+  await post.save();
+
+  // Return the updated post
+  return post;
 };

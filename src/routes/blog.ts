@@ -1,13 +1,14 @@
-import express from 'express';
-import { protectRoute } from '../controllers/auth.controller'
-import { CreatePostHandler, 
-    GetAllPostHandler, GetAPostHandler, UpdateAPostHandler, 
-    DeleteAPostHandler, CommentOnAPostHandler, UpdateACommentHandler, 
-    LikeAPostHandler, UnlikeAPostHandler, DislikeAPostHandler, 
-    RevertDislikeAPostHandler } from '../controllers/blog';
+import express from 'express'; // Import express framework
 
+import { protectRoute } from '../controllers/auth.controller'; // Import authentication middleware
+
+import { CreatePostHandler, GetAllPostHandler, GetAPostHandler,
+    UpdateAPostHandler, DeleteAPostHandler, CommentOnAPostHandler,
+    UpdateACommentHandler, LikeAPostHandler, UnlikeAPostHandler,
+    DislikeAPostHandler, RevertDislikeAPostHandler} from '../controllers/blog'; // Import route handlers
+
+// Create an express router instance
 const router = express.Router();
-
 
 // Create a post
 router.post('/:userId', protectRoute, CreatePostHandler);
@@ -42,5 +43,5 @@ router.post('/:postId/dislike', protectRoute, DislikeAPostHandler);
 // Revert-dislike on a post
 router.post('/:postId/revert-dislike', protectRoute, RevertDislikeAPostHandler);
 
-
+// Export the router for use in the app.ts file
 export default router;

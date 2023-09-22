@@ -1,71 +1,71 @@
-import mongoose from "mongoose";
+import mongoose from "mongoose"; // Import Mongoose package for MongoDB
 
+// Create a schema object using Mongoose's Schema class
 const Schema = mongoose.Schema;
 
-const PostSchema = new Schema(
-  {
+// Define the schema for the Post model
+const PostSchema = new Schema({
+    id: {
+      type: Schema.Types.ObjectId
+    },
+// Field for title
     title: {
       type: String,
-      required: true,
-      minlength: 15,
-      maxlength: 50,
+      required: true,     // Title is required
+      minlength: 15,     // Minimum length of 15 characters
+      maxlength: 50,     // Maximum length of 50 characters
     },
+// Field for content
     content: {
       type: String,
+      required: true,      // Content is required
+    },
+
+// An author field that references the 'User' model
+    author: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',          // Reference to the 'User' model
       required: true,
     },
-    author: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    },
+
+// Tags field as an array of strings
     tags: [{
       type: String,
-      maxlength: 10,
-      required: false
+      maxlength: 10,       // Maximum length of each tag is 10 characters
+      required: false,     // Tags are optional
     }],
+
+// Like field with default value
     likes: {
       type: Number,
-      default: 0,
+      default: 0,          // Default value is 0
     },
+
+    
+// Dislike field with default value
     dislikes: {
       type: Number,
-      default: 0,
+      default: 0,          // Default value is 0
     },
-    comments: [{
-        body: String,
 
-        _id: {
-          type: Schema.Types.ObjectId,
-          ref: 'User',
-        },
-        comment_id: {
-          type: Schema.Types.ObjectId,
-          ref: 'Comment',
-        },
-      }],
-  }, 
-  {
-    timestamps: true, 
+// Comments field as an array of comment objects
+    comments: [{
+      body: String,         // Comment body as a string
+
+      _id: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',        // Reference to the User model for comment author
+      },
+
+      comment_id: {
+        type: Schema.Types.ObjectId,
+        ref: 'Comment',     // Reference to the Comment model
+      },
+    }],
+  }, {
+    timestamps: true,         // Timestamps for createdAt and updatedAt
   }
 );
 
+// Create and export the Post model using the schemas
 export const PostModel = mongoose.model('Post', PostSchema);
-
-/**
- * interface Comment {
-    body: string;
-    user_id?: mongoose.Types.ObjectId;
-    comment_id?: mongoose.Types.ObjectId;
-}
-
-// Define the Post interface that extends Document
-interface Post extends Document {
-    title: string;
-    content: string;
-    author: string;
-    likes: number;
-    dislikes: number;
-    comments: Comment[];
-}
- */
