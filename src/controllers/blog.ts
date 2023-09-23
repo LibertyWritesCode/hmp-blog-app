@@ -28,6 +28,7 @@ export const SignUpHandler = async (req: express.Request, res: express.Response)
         
       // Respond with a success message and the returned data
         return res.status(200).send({ message: 'Signup successful', data });
+        
    } catch (e: any) {
         // Handle different error cases
         if (e.message === 'Name already in use') {
@@ -94,9 +95,9 @@ export const CreatePostHandler = async (req: express.Request, res: express.Respo
     
           // Call the createPost function from the imported postService
           const createPost = await postService.createPost(userId, { title, content, author: userId, tags });
-  
           // Respond with a success message and the created post data
           return res.status(200).send({ message: 'Post created successfully',  data: createPost });
+
       } catch (error) {
           // Handle any unexpected errors with a 500 status code response
           return res.status(500).send({ message: 'Internal Server Error' });
@@ -121,9 +122,9 @@ export const GetAllPostHandler = async (req: express.Request, res: express.Respo
 
         // Call the getAllPosts function from the postService
         const allPosts = await postService.getAllPosts(query);
-
         // Respond with a status 200 and the fetched allPosts
         return res.status(200).send(allPosts);
+
     } catch (error) {
        // Handle any unexpected errors with a 500 status code response
         return res.status(500).send({ message: 'Internal Server Error' });
@@ -145,9 +146,9 @@ export const GetAPostHandler = async (req: express.Request, res: express.Respons
           // If the post does not exist, respond with a status 404 and an error message
               return res.status(404).send({ message: 'Post not found' });
           }
-  
           // If the post exists, respond with a status 200 and the fetched post
           return res.status(200).send(post);
+
       } catch (error: any) {
         // Handle any unexpected errors with a 500 status code response
           return res.status(500).send({ message: 'Internal Server Error' });
@@ -178,6 +179,7 @@ export const UpdateAPostHandler = async (req: express.Request, res: express.Resp
           if (e.message === 'NOT FOUND') {
               return res.status(404).send({ message: 'Post Not Found' });
           }
+
          // Handle any unexpected errors with a 500 status code response
           return res.status(500).send({ message: 'Internal Server Error' });
       }
@@ -192,14 +194,15 @@ export const DeleteAPostHandler = async (req: express.Request, res: express.Resp
     try {
         // Call the deleteAPost function from the postService 
         const post = await postService.deleteAPost(postId);
-        
         // Respond with a status 200 and a success message indicating that the post was deleted
         return res.status(200).send({ message: 'Post Deleted' });
+
     } catch (e: any) {
         // Handle different error cases
         if (e.message === 'NOT FOUND') {
             return res.status(404).send({ message: 'Post not found' });
         }
+
          // Handle any unexpected errors with a 500 status code response
         return res.status(500).send({ message: 'Internal Server Error' });
     }   
@@ -227,6 +230,7 @@ export const CommentOnAPostHandler = async (req: express.Request, res: express.R
       if (e.message === 'POST NOT FOUND!') {
         return res.status(404).send({ message: 'Post not found' })
       }
+
        // Handle any unexpected errors with a 500 status code response
       return res.status(500).send({ message: 'Internal Server Error' });
   }
@@ -254,6 +258,7 @@ export const UpdateACommentHandler = async (req: express.Request, res: express.R
       if (e.message === 'Not Found') {
         return res.status(404).send({ message: 'Post and comment not found!'})
       }
+
        // Handle any unexpected errors with a 500 status code response
         return res.status(500).send({ message: 'Internal Server Error'})
     }
@@ -262,13 +267,14 @@ export const UpdateACommentHandler = async (req: express.Request, res: express.R
 
 // LIKE A POST HANDLER
 export const LikeAPostHandler = async (req: express.Request, res: express.Response) => {
-    // Receive postId from the request parameter
+   // Receive request body data and request parameters
     const { postId } = req.params;
+    const { name } = req.body;
     
     try {
            // Call the likeAPost function from the postService 
-        const post = await postService.likeAPost(postId);
-           // Respond with a status 200 and a success message indicating that the post was liked
+        const post = await postService.likeAPost(postId, { name });
+        // Respond with a status 200 and a success message indicating that the post was liked
           return res.status(200).send({ message: 'Post liked' });
       
         } catch (e: any) {
@@ -276,9 +282,10 @@ export const LikeAPostHandler = async (req: express.Request, res: express.Respon
           if (e.message === 'Post not found') {
             return res.status(404).send({ message: 'Post not found!'})
           }
-          if (e.message === 'Post has already been liked') {
-            return res.status(400).send({ message: 'Post has already been liked'})
+          if (e.message === 'User has already liked the post') {
+            return res.status(400).send({ message: 'User has already liked the post'})
           }
+
            // Handle any unexpected errors with a 500 status code response
           return res.status(500).send({ message: 'Internal Server Error' });
         }
@@ -287,12 +294,13 @@ export const LikeAPostHandler = async (req: express.Request, res: express.Respon
 
 // UNLIKE A POST HANDLER
 export const UnlikeAPostHandler = async (req: express.Request, res: express.Response) => {
-  // Receive postId from the request parameter
-    const { postId } = req.params;
+  // Receive request body data and request parameters
+  const { name } = req.body;
+  const { postId } = req.params;
     
     try {
         // Call the unlikeAPost function from the postService 
-        const post = await postService.unlikeAPost(postId);
+        const post = await postService.unlikeAPost(postId, { name });
         // Respond with a status 200 and a success message indicating that the post was unliked
         return res.status(200).send({ message: 'Post Unliked'})
  
@@ -301,6 +309,7 @@ export const UnlikeAPostHandler = async (req: express.Request, res: express.Resp
         if (e.message === 'Post not found') {
           return res.status(404).send({ message: 'Post not found!'})
         }
+
          // Handle any unexpected errors with a 500 status code response
         return res.status(500).send({ message: 'Internal Server Error'})
     }
@@ -308,12 +317,13 @@ export const UnlikeAPostHandler = async (req: express.Request, res: express.Resp
 
 // DISLIKE A POST HANDLER
 export const DislikeAPostHandler = async (req: express.Request, res: express.Response) => {
-  // Receive postId from the request parameter
-    const { postId } = req.params;
+  // Receive request body data and request parameters
+  const { name } = req.body;
+  const { postId } = req.params;
     
     try {
        // Call the dislikeAPost function from the postService 
-        const post = await postService.dislikeAPost(postId);
+        const post = await postService.dislikeAPost(postId, { name });
         // Respond with a status 200 and a success message indicating that the post was disliked
         return res.status(200).send({ message: 'Post Disliked'})
  
@@ -322,9 +332,10 @@ export const DislikeAPostHandler = async (req: express.Request, res: express.Res
         if (e.message === 'Post not found') {
           return res.status(404).send({ message: 'Post not found!'})
         }
-        if (e.message === 'Post has already been disliked') {
-          return res.status(400).send({ message: 'Post has already been disliked'})
+        if (e.message === 'User has already disliked the post') {
+          return res.status(400).send({ message: 'User has already disliked the post'})
         }
+
         // Handle any unexpected errors with a 500 status code response
         return res.status(500).send({ message: 'Internal Server Error'})
     }
@@ -332,12 +343,14 @@ export const DislikeAPostHandler = async (req: express.Request, res: express.Res
 
 // REVERT A DISLIKE ON A POST HANDLER
 export const RevertDislikeAPostHandler = async (req: express.Request, res: express.Response) => {
-  // Receive postId from the request parameter
-    const { postId } = req.params;
+  // Receive request body data and request parameters
+  const { name } = req.body
+  const { postId } = req.params;
+
     try {
         // Call the dislikeAPost function from the postService 
-        const post = await postService.revertDislikeAPost(postId);
-         // Respond with a status 200 and a success message indicating that the post was disliked
+        const post = await postService.revertDislikeAPost(postId, { name });
+         // Respond with a status 200 and a success message indicating that the post dislike was reverted
         return res.status(200).send({ message: 'Reverted Dislike'})
  
       } catch (e: any) {
@@ -345,6 +358,7 @@ export const RevertDislikeAPostHandler = async (req: express.Request, res: expre
         if (e.message === 'Post not found') {
           return res.status(404).send({ message: 'Post not found!'})
         }
+        
          // Handle any unexpected errors with a 500 status code response
         return res.status(500).send({ message: 'Internal Server Error'})
     }

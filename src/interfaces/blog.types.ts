@@ -38,3 +38,9 @@ export interface UpdatePostRequestBody {
 export interface CommentOnPostRequestBody {
   comment: string,      // The comment text
 }
+
+// Interface for the request body when adding a comment to a post
+export interface LikeRequestBody {
+  name: string,      // The name text
+}
+

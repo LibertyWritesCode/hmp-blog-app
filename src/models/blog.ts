@@ -35,17 +35,15 @@ const PostSchema = new Schema({
       required: false,     // Tags are optional
     }],
 
-// Like field with default value
+// Like field as an array of strings
     likes: {
-      type: Number,
-      default: 0,          // Default value is 0
+      type: [String],
     },
 
     
-// Dislike field with default value
+// Dislike field as an array of strings
     dislikes: {
-      type: Number,
-      default: 0,          // Default value is 0
+      type: [String],
     },
 
 // Comments field as an array of comment objects

@@ -156,12 +156,12 @@ async function protectRoute (req: express.Request, res: express.Response, next: 
 
 
 // CREATE A POST
-app.post('/post', protectRoute, async (req: express.Request, res: express.Response) => {
+app.post('/post/:userId', protectRoute, async (req: express.Request, res: express.Response) => {
     const { userId } = req.params;
-    const { title, content, author, tags } = req.body;
+    const { title, content, tags } = req.body;
     try {
-      if (!title || !author || !content) {
-        return res.status(400).send({ message: 'Title, author, and content are required' });
+      if (!title || !content) {
+        return res.status(400).send({ message: 'Title and content are required' });
       }
       if (title.length < 15 || title.length > 50) {
         return res.status(400).send({ message: 'Title must be between 15 and 50 characters' });
@@ -170,7 +170,7 @@ app.post('/post', protectRoute, async (req: express.Request, res: express.Respon
         return res.status(400).send({ message: 'You can only add 3 tags' });
       }
   
-      const createPost = await PostModel.create(req.body);
+      const createPost = await PostModel.create(req.body, {author: userId});
 
       return res.status(200).send({ message: 'Post created successfully',  data: createPost });
     } catch (error: any) {
@@ -342,38 +342,23 @@ app.put('/post/:postId/comment/:commentId', protectRoute, async (req: express.Re
 // LIKE A POST
 app.post('/post/:postId/like', protectRoute, async (req: express.Request, res: express.Response) => {
     const { postId } = req.params;
+    const { userName } = req.body;
     
     try {
         const post = await PostModel.findById(postId);
         if (!post) {
           return res.status(404).send({ message: 'Post not found' });
         }
-        
-        let userHasLiked = false;
-        let userHasDisliked = false;
-
-        if (post.likes === 1) {
-        userHasLiked = true;
+        // Check if user has already liked the post
+        if (post.likes.includes(userName)) {
+          return res.status(400).send({ message: 'User has already liked the post' });
         }
-        if (post.dislikes === 1) {
-          userHasDisliked = true;
-          }
-
-          if (userHasLiked) {
-            return res.status(400).send({ message: 'Post has already been liked' });
-          }
-      
-          // If the user has previously disliked the post, reduce dislike count to 0 and increase like count
-          if (userHasDisliked) {
-            // Reduce dislike count to 0
-            post.dislikes = 0;
-            // Increase like count by 1
-            post.likes = 1;
-          } else {
-            // User hasn't liked or disliked the post, so increase the like count by 1
-            post.likes = 1;
-          }
-
+        // Check if user has already disliked the post and remove the user from the dislikes array
+        if (post.dislikes.includes(userName)) {
+          post.dislikes.splice(post.dislikes.indexOf(userName, 1))
+        }
+        
+        post.likes.push(userName)
           // findOneAndUpdate({user:userId},{like},{upsert:true, new:true})
       
           await post.save();
@@ -389,16 +374,21 @@ app.post('/post/:postId/like', protectRoute, async (req: express.Request, res: e
 // UNLIKE A POST
 app.post('/post/:postId/unlike', protectRoute, async (req: express.Request, res: express.Response) => {
     const { postId } = req.params;
+    const { userName } = req.body;
     
-    try {
-        const post = await PostModel.findById(postId);
-        if (!post) {
-          return res.status(404).send({ message: 'Post not found' });
-        }
-        if (post) {
-            post.likes = 0;
-        }
-        
+        try {
+            const post = await PostModel.findById(postId);
+            if (!post) {
+              return res.status(404).send({ message: 'Post not found' });
+            }
+            // Check if user has already liked the post
+            if (post.likes.includes(userName)) {
+              post.likes.splice(post.likes.indexOf(userName, 1))
+            }
+            //Check if user has not liked the post
+            if (!post.likes.includes(userName)) {
+              return res.status(400).send({ message: 'You need to like the post to unlike it' });
+          }
         await post.save();
         return res.status(200).send({ message: 'Post Unliked'})
  
@@ -410,38 +400,25 @@ app.post('/post/:postId/unlike', protectRoute, async (req: express.Request, res:
 
 // DISLIKE A POST
 app.post('/post/:postId/dislike', protectRoute, async (req: express.Request, res: express.Response) => {
-    const { postId } = req.params;
+        const { postId } = req.params;
+        const { userName } = req.body;
     
-    try {
-        const post = await PostModel.findById(postId);
-        if (!post) {
-          return res.status(404).send({ message: 'Post not found' });
-        }
-        let userHasLiked = false;
-        let userHasDisliked = false;
-
-        if (post.likes === 1) {
-        userHasLiked = true;
-        }
-        if (post.dislikes === 1) {
-          userHasDisliked = true;
-          }
-
-          if (userHasDisliked) {
-            return res.status(400).send({ message: 'Post has already been disliked' });
-          }
+  try {
+      const post = await PostModel.findById(postId);
+      if (!post) {
+        return res.status(404).send({ message: 'Post not found' });
+      }
+      // Check if user has already liked the post
+      if (post.dislikes.includes(userName)) {
+        return res.status(400).send({ message: 'User has already disliked the post' });
+      }
+      // Check if user has already liked the post and remove the user from the likes array
+      if (post.likes.includes(userName)) {
+        post.likes.splice(post.likes.indexOf(userName, 1))
+      }
       
-          // If the user has previously liked the post, reduce like count to 0 and increase dislike count
-          if (userHasLiked) {
-            // Reduce dislike count to 0
-            post.likes = 0;
-            // Increase like count by 1
-            post.dislikes = 1;
-          } else {
-            // User hasn't disliked or liked the post, so increase the dislike count by 1
-            post.dislikes = 1;
-          }
-
+         post.dislikes.push(userName)
+    
         await post.save();
         return res.status(200).send({ message: 'Post Disliked'})
  
@@ -453,16 +430,21 @@ app.post('/post/:postId/dislike', protectRoute, async (req: express.Request, res
 // REVERT A DISLIKE ON A POST
 app.post('/post/:postId/revert-dislike', protectRoute, async (req: express.Request, res: express.Response) => {
     const { postId } = req.params;
+    const { userName } = req.body;
 
     try {
-        const post = await PostModel.findById(postId);
-        if (!post) {
-          return res.status(404).send({ message: 'Post not found' });
-        }
-        if (post) {
-            post.dislikes -=1;
-            post.dislikes = 0;
-        }
+      const post = await PostModel.findById(postId);
+      if (!post) {
+        return res.status(404).send({ message: 'Post not found' });
+      }
+      // Check if user has already disliked the post
+      if (post.dislikes.includes(userName)) {
+        post.dislikes.splice(post.dislikes.indexOf(userName, 1))
+      }
+       //Check if user has not disliked the post
+      if (!post.dislikes.includes(userName)) {
+        return res.status(400).send({ message: 'You need to dislike the post to revert-dislike' });
+    }
         
         await post.save();
         return res.status(200).send({ message: 'Reverted Dislike'})

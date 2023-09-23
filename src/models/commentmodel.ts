@@ -16,16 +16,14 @@ const commentSchema = new Schema({
     type: Schema.Types.ObjectId,
   },
 
-// Field for likes
+// Field for likes as an array of strings
   likes: {
-    type: Number,
-    default: 0, // Default value of 0 for likes
+    type: [String]
   },
 
-// Field for dislikes
+// Field for dislikes as an array of strings
   dislikes: {
-    type: Number,
-    default: 0, // Default value of 0 for dislikes
+    type: [String]
   }
 
 }, {

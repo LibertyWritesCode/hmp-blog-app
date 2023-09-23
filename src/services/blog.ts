@@ -8,7 +8,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import {SignUpRequestBody, LoginRequestBody, CreatePostRequestBody, 
-  GetAllPostRequest, UpdatePostRequestBody, CommentOnPostRequestBody} from '../interfaces/blog.types';
+  GetAllPostRequest, UpdatePostRequestBody, CommentOnPostRequestBody, LikeRequestBody} from '../interfaces/blog.types';
 
 //SIGN UP
 export const signUp = async function (body: SignUpRequestBody): Promise<any> {
@@ -216,8 +216,10 @@ export const updateAComment = async function (postId: string, commentId: string,
 
 
 
-// LIKE A POST function
-export const likeAPost = async function (postId: string): Promise<any> {
+// LIKE A POST 
+export const likeAPost = async function (postId: string, body: LikeRequestBody): Promise<any> {
+  // Receive request body data
+  const { name } = body;
   // Find the post by its ID using PostModel
   const post = await PostModel.findById(postId);
 
@@ -227,36 +229,17 @@ export const likeAPost = async function (postId: string): Promise<any> {
       throw new Error('Post not found');
   }
 
-  // Set the variable to check whether the user has previously liked or disliked to false
-  let userHasLiked = false;
-  let userHasDisliked = false;
-
-  // Check if the post has been previously liked
-  if (post.likes === 1) {
-      userHasLiked = true;
+  // Check if user has already liked the post
+  if (post.likes.includes(name)) {
+    throw new Error('User has already liked the post');
+  }
+  // Check if user has already disliked the post and remove the user from the dislikes array
+  if (post.dislikes.includes(name)) {
+    post.dislikes.splice(post.dislikes.indexOf(name, 1))
   }
 
-  // Check if the post has been previously disliked
-  if (post.dislikes === 1) {
-      userHasDisliked = true;
-  }
-
-  // If the user has already liked the post, throw an error
-  if (userHasLiked) {
-      throw new Error('Post has already been liked');
-  }
-
-  // If the user has previously disliked the post, update the counts
-  if (userHasDisliked) {
-      // Reduce dislike count to 0
-      post.dislikes = 0;
-      // Increase like count by 1
-      post.likes = 1;
-  } else {
-      // If the user hasn't liked or disliked the post previously, increase the like count by 1
-      post.likes = 1;
-  }
-
+  // Add name to the likes array
+  post.likes.push(name)
   // Save the post with the updated like and dislike counts
   await post.save();
 
@@ -265,9 +248,10 @@ export const likeAPost = async function (postId: string): Promise<any> {
 };
 
       
-
 // UNLIKE A POST
-export const unlikeAPost = async function (postId: string): Promise<any> {
+export const unlikeAPost = async function (postId: string, body: LikeRequestBody): Promise<any> {
+  // Receive request body data
+  const { name } = body;
   // Find the post by its ID using PostModel
   const post = await PostModel.findById(postId);
 
@@ -277,21 +261,20 @@ export const unlikeAPost = async function (postId: string): Promise<any> {
       throw new Error('Post not found');
   }
 
-   // If the post exists, set the 'likes' count to 0
-  if (post) {
-      post.likes = 0;
-  }
-  
-  // Save the post with the updated 'likes' count
-  await post.save();
+  // Remove the user from the likes array
+    post.likes.splice(post.likes.indexOf(name, 1))
 
+    // Save the unliked post
+  await post.save();
   // Return the updated post
   return post;
 };
 
 
 // DISLIKE A POST
-export const dislikeAPost = async function (postId: string): Promise<any> {
+export const dislikeAPost = async function (postId: string, body: LikeRequestBody): Promise<any> {
+  // Receive request body data
+  const { name } = body;
   // Find the post by its ID using PostModel
   const post = await PostModel.findById(postId);
 
@@ -300,37 +283,17 @@ export const dislikeAPost = async function (postId: string): Promise<any> {
       // If the post is not found, throw an error
       throw new Error('Post not found');
   }
-
-  // Set the variable to check whether the user has previously liked or disliked to false
-  let userHasLiked = false;
-  let userHasDisliked = false;
-
-  // Check if the post has been previously liked
-  if (post.likes === 1) {
-      userHasLiked = true;
+// Check if user has already disliked the post
+  if (post.dislikes.includes(name)) {
+    throw new Error('User has already disliked the post');
+  }
+  // Check if user has already liked the post and remove the user from the likes array
+  if (post.likes.includes(name)) {
+    post.likes.splice(post.likes.indexOf(name, 1))
   }
 
-  // Check if the post has been previously disliked
-  if (post.dislikes === 1) {
-      userHasDisliked = true;
-  }
-
-  // If the user has already disliked the post, throw an error
-  if (userHasDisliked) {
-      throw new Error('Post has already been disliked');
-  }
-
-  // If the user has previously liked the post, update the counts
-  if (userHasLiked) {
-      // Reduce like count to 0
-      post.likes = 0;
-      // Increase dislike count by 1
-      post.dislikes = 1;
-  } else {
-      // If the user hasn't disliked or liked the post previously, increase the dislike count by 1
-      post.dislikes = 1;
-  }
-
+  // Add name to the dislikes array
+  post.dislikes.push(name)
   // Save the post with the updated like and dislike counts
   await post.save();
 
@@ -340,7 +303,9 @@ export const dislikeAPost = async function (postId: string): Promise<any> {
 
 
 // REVERT A DISLIKE ON A POST
-export const revertDislikeAPost = async function (postId: string): Promise<any> {
+export const revertDislikeAPost = async function (postId: string, body: LikeRequestBody): Promise<any> {
+  // Receive request body data
+  const { name } = body;
   // Find the post by its ID using PostModel
   const post = await PostModel.findById(postId);
 
@@ -350,10 +315,8 @@ export const revertDislikeAPost = async function (postId: string): Promise<any> 
       throw new Error('Post not found');
   }
 
-  // If the post exists, reset the 'dislikes' count to 0
-  if (post) {
-      post.dislikes = 0;
-  }
+  // Remove the user from the dislikes array
+   post.dislikes.splice(post.dislikes.indexOf(name, 1))
   
   // Save the post with the updated 'dislikes' count
   await post.save();
@@ -361,3 +324,4 @@ export const revertDislikeAPost = async function (postId: string): Promise<any> 
   // Return the updated post
   return post;
 };
+
