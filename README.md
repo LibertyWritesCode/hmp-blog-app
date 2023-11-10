@@ -2,7 +2,7 @@
 
 
 ## API Documentation 
-[This is the link to the API Documentation of the source code] (https://documenter.getpostman.com/view/2s9YC8uqZ1?version=latest)
+[This is the link to the API Documentation of the source code](https://documenter.getpostman.com/view/2s9YC8uqZ1?version=latest)
 
 ## Postman Collection 
 https://www.postman.com/orbital-module-explorer-95900125/workspace/capstone-project/request/26428551-c45c1299-db9a-4b79-bc2f-04cdfd1e4de5
